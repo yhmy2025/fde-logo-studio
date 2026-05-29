@@ -288,6 +288,13 @@ def _icon_scales(draw, cx, cy, r, c, lw):
 # ═══════════════════════════════════════════════════════
 #  工具函数
 # ═══════════════════════════════════════════════════════
+def name_hash(name):
+    """名称哈希 → 0-99，用于决定配色顺序等变化"""
+    h = 0
+    for i, c in enumerate(name):
+        h = (h * 31 + ord(c)) % 100
+    return h
+
 def hex_to_rgb(h):
     h = h.lstrip("#")
     return tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
@@ -709,11 +716,24 @@ def gen_abstract(name, mood, palette, output_dir, tagline="", industry="default"
 #  风格8: 文字排版 TYPOGRAPHIC
 # ═══════════════════════════════════════════════════════
 def gen_typographic(name, mood, palette, output_dir, tagline="", industry="default"):
-    """纯文字排版：横排/竖排/错位/框线，适合偏文化类品牌"""
+    """纯文字排版：横排/竖排/错位/框线，自适应名称长度"""
     results = []
     colors = palette["colors"]
     fw = palette["font_weight"]
     cx, cy = SIZE//2, SIZE//2
+
+    # 根据名称长度自适应字号
+    n = len(name)
+    if n <= 2:
+        fn_big, fn_mid, char_gap = 160, 100, 180
+    elif n <= 3:
+        fn_big, fn_mid, char_gap = 120, 90, 140
+    elif n <= 4:
+        fn_big, fn_mid, char_gap = 96, 80, 110
+    elif n <= 6:
+        fn_big, fn_mid, char_gap = 72, 64, 90
+    else:
+        fn_big, fn_mid, char_gap = 56, 48, 70
 
     combos = [
         ("竖排古典", colors[0], colors[3] if len(colors) > 3 else "#f5f0e8"),
@@ -727,53 +747,68 @@ def gen_typographic(name, mood, palette, output_dir, tagline="", industry="defau
         draw = ImageDraw.Draw(img)
 
         if "竖排" in vname:
-            fn = get_font(100, fw)
-            total_h = len(name) * 120
+            fn = get_font(fn_big, fw)
+            y_gap = min(char_gap, (SIZE - 160) // max(n, 1))
+            total_h = n * y_gap
             start_y = (SIZE - total_h) / 2
             for i, ch in enumerate(name):
                 tw, th = text_bbox(draw, ch, fn)
-                draw.text((cx-tw//2, start_y + i*120), ch, fill=hex_to_rgb(fg), font=fn)
-            # 右侧竖线
-            draw.line([(cx+80, start_y), (cx+80, start_y+total_h-60)],
+                draw.text((cx-tw//2, start_y + i*y_gap), ch, fill=hex_to_rgb(fg), font=fn)
+            line_x = cx + fn_big//2 + 30
+            draw.line([(line_x, start_y), (line_x, start_y+total_h-y_gap//2)],
                       fill=hex_to_rgb(fg), width=2)
+            ft = get_font(18, "light")
+            draw_centered_text(draw, "— " + mood.upper() + " —", SIZE - 60, ft, hex_to_rgb(fg), SIZE)
 
         elif "左齐" in vname:
-            fn = get_font(80, fw)
-            left = 100
+            fn = get_font(fn_mid, fw)
+            left = 80
+            line_h = text_bbox(draw, "测", fn)[1]
+            total_h = n * line_h + (n-1) * 10
+            start_y = (SIZE - total_h) / 2
             for i, ch in enumerate(name):
-                tw, th = text_bbox(draw, ch, fn)
-                draw.text((left + i*15, cy-th + i*5), ch, fill=hex_to_rgb(fg), font=fn)
+                draw.text((left, start_y + i*(line_h+10)), ch, fill=hex_to_rgb(fg), font=fn)
+            draw.line([(left-15, start_y), (left-15, start_y + total_h - line_h)],
+                      fill=hex_to_rgb(fg), width=2)
 
         elif "框线" in vname:
-            fn = get_font(90, fw)
-            margin = 120
+            fn = get_font(fn_mid, fw)
+            margin = 100
             draw.rectangle([margin, margin, SIZE-margin, SIZE-margin],
                            outline=hex_to_rgb(fg), width=3)
-            draw_centered_text(draw, name, cy-30, fn, hex_to_rgb(fg), SIZE)
+            cl = 30
+            for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1)]:
+                cx_c = cx + dx*(SIZE//2 - margin - cl//2)
+                cy_c = cy + dy*(SIZE//2 - margin - cl//2)
+                draw.line([(cx_c, cy_c+cl*dy), (cx_c, cy_c)], fill=hex_to_rgb(fg), width=2)
+                draw.line([(cx_c, cy_c), (cx_c+cl*dx, cy_c)], fill=hex_to_rgb(fg), width=2)
+            draw_centered_text(draw, name, cy-20, fn, hex_to_rgb(fg), SIZE)
             if tagline:
                 ft = get_font(24, "light")
                 draw_centered_text(draw, tagline, cy+80, ft, hex_to_rgb(fg), SIZE)
 
         elif "错位" in vname:
-            fn = get_font(85, fw)
-            gap = 130
+            fn = get_font(fn_mid, fw)
+            gap = char_gap // 2
             total_w = 0
-            cw_list = []
+            cw_list, th_list = [], []
             for ch in name:
-                tw, _ = text_bbox(draw, ch, fn)
-                cw_list.append(tw)
+                tw, th = text_bbox(draw, ch, fn)
+                cw_list.append(tw); th_list.append(th)
                 total_w += tw
-            total_w += gap * (len(name) - 1)
+            total_w += gap * (n - 1)
+            if total_w > SIZE - 80:
+                scale = (SIZE - 80) / total_w
+                fn = get_font(int(fn_mid * scale), fw)
+                cw_list = [text_bbox(draw, ch, fn)[0] for ch in name]
+                th_list = [text_bbox(draw, ch, fn)[1] for ch in name]
+                total_w = sum(cw_list) + gap * (n - 1)
             start_x = (SIZE - total_w) / 2
             for i, ch in enumerate(name):
-                y_off = -30 if i % 2 == 0 else 30
-                tw, th = text_bbox(draw, ch, fn)
+                y_off = -35 if i % 2 == 0 else 35
+                tw, th = cw_list[i], th_list[i]
                 draw.text((start_x, cy-th//2+y_off), ch, fill=hex_to_rgb(fg), font=fn)
-                start_x += cw_list[i] + gap
-
-        if not tagline:
-            ft = get_font(20, "light")
-            draw_centered_text(draw, "— " * 3, SIZE*0.85, ft, hex_to_rgb(fg), SIZE)
+                start_x += tw + gap
 
         results.append(save_both(img, output_dir, f"typographic_{vname}"))
     return results
@@ -853,12 +888,23 @@ def main():
     # 调性
     if args.mood is None:
         args.mood = INDUSTRY_MOOD.get(args.industry, "modern")
-    mood_palette = MOOD_PALETTES.get(args.mood, MOOD_PALETTES["modern"])
+    base_palette = MOOD_PALETTES.get(args.mood, MOOD_PALETTES["modern"])
 
     # 自定义色
     if args.color:
-        mood_palette = dict(mood_palette)
-        mood_palette["colors"] = [args.color] + mood_palette["colors"][1:]
+        mood_palette = dict(base_palette)
+        mood_palette["colors"] = [args.color] + base_palette["colors"][1:]
+    else:
+        # 根据公司名称哈希轮转调色板 → 不同名称不同配色顺序
+        nh = name_hash(args.name)
+        mood_palette = dict(base_palette)
+        colors = list(base_palette["colors"])
+        accs = list(base_palette["accent_colors"])
+        shift = nh % len(colors)
+        mood_palette["colors"] = colors[shift:] + colors[:shift]
+        if accs:
+            acc_shift = nh % len(accs)
+            mood_palette["accent_colors"] = accs[acc_shift:] + accs[:acc_shift]
 
     # 风格
     if args.styles == "all-mood":
@@ -879,9 +925,12 @@ def main():
     else:
         styles = [s.strip() for s in args.styles.split(",")]
 
-    # 按方向数控制
+    # 按方向数控制 + 名称哈希确定性打乱风格顺序（不同公司名不同排列）
     if args.directions:
-        styles = styles[:args.directions]
+        nh = name_hash(args.name)
+        # 混合公司哈希+风格名 → 每个名称有独特的风格顺序
+        seeded = sorted(styles, key=lambda s: ((nh * 13 + sum(ord(c) for c in s)) % 97))
+        styles = seeded[:args.directions]
 
     # 输出目录
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
