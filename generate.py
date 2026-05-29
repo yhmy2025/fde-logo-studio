@@ -272,6 +272,244 @@ class Patterns:
             draw.line([(cx_c, cy_c+l*dy), (cx_c, cy_c)], fill=color, width=width)
             draw.line([(cx_c, cy_c), (cx_c+l*dx, cy_c)], fill=color, width=width)
 
+    @staticmethod
+    def diamond_grid(draw, x0, y0, w, h, cell, color, lw=1):
+        """菱形网格"""
+        for y in range(y0, y0+h, cell):
+            for x in range(x0, x0+w, cell):
+                hc = cell // 2
+                draw.line([(x+hc, y), (x+cell, y+hc), (x+hc, y+cell), (x, y+hc)],
+                         fill=color, width=lw)
+                draw.line([(x+hc, y), (x+hc, y+cell)], fill=color, width=lw)
+                draw.line([(x, y+hc), (x+cell, y+hc)], fill=color, width=lw)
+
+    @staticmethod
+    def herringbone(draw, x0, y0, w, h, band_w, angle, color, lw=1):
+        """人字形/鱼骨纹"""
+        for y in range(y0, y0+h, band_w*2):
+            for x in range(x0, x0+w, band_w):
+                dx = band_w * math.cos(angle)
+                dy = band_w * math.sin(angle)
+                x1, y1 = x, y
+                x2, y2 = x+dx, y+dy
+                if x0 <= x2 <= x0+w and y0 <= y2 <= y0+h:
+                    draw.line([(x1, y1), (x2, y2)], fill=color, width=lw)
+
+    @staticmethod
+    def zigzag(draw, x0, y0, w, h, amplitude, frequency, color, lw=2):
+        """锯齿/之字纹"""
+        periods = h // frequency if frequency > 0 else h // 40
+        for yoff in range(0, h, frequency*2):
+            pts = []
+            segs = 8
+            for i in range(segs+1):
+                x = x0 + w * i / segs
+                y = y0 + yoff + amplitude * (1 if i%2==0 else -1)
+                if y0 <= y <= y0+h:
+                    pts.append((x, y))
+            if len(pts) >= 2:
+                for j in range(len(pts)-1):
+                    draw.line([pts[j], pts[j+1]], fill=color, width=lw)
+
+    @staticmethod
+    def starburst(draw, cx, cy, rays, r1, r2, color, lw=1):
+        """放射状星光/太阳纹"""
+        for i in range(rays):
+            a = i * 2*math.pi / rays
+            x1, y1 = cx + r1*math.cos(a), cy + r1*math.sin(a)
+            x2, y2 = cx + r2*math.cos(a), cy + r2*math.sin(a)
+            draw.line([(x1, y1), (x2, y2)], fill=color, width=lw)
+
+    @staticmethod
+    def flower_petal(draw, cx, cy, petals, r, color, fill=False):
+        """花瓣/曼陀罗图案"""
+        for i in range(petals):
+            a = i * 2*math.pi / petals
+            px = cx + r*0.5*math.cos(a)
+            py = cy + r*0.5*math.sin(a)
+            pr = r * 0.35
+            if fill:
+                Shapes.dot(draw, int(px), int(py), int(pr), color)
+            else:
+                Shapes.ring(draw, int(px), int(py), int(pr), color, 1)
+        if fill:
+            Shapes.dot(draw, int(cx), int(cy), int(r*0.18), color)
+
+    @staticmethod
+    def layered_lines(draw, x1, y1, x2, y2, layers, offset, color, lw=1):
+        """平行线条组（隔线效果）"""
+        dx, dy = x2-x1, y2-y1
+        length = math.sqrt(dx*dx+dy*dy)
+        nx, ny = -dy/length if length>0 else 0, dx/length if length>0 else 1
+        for i in range(layers):
+            off = offset * (i - (layers-1)/2)
+            draw.line([(x1+nx*off, y1+ny*off), (x2+nx*off, y2+ny*off)],
+                     fill=color, width=lw)
+
+
+# ═══════════════ 字体系统 ═══════════════
+
+class Typography:
+    """文字处理变化系统"""
+
+    @staticmethod
+    def measure(draw, text, size, weight="regular"):
+        fn = get_font(size, weight)
+        return text_bbox(draw, text, fn)
+
+    @staticmethod
+    def horizontal_spread(draw, name, cx, cy, size, color, gap_ratio=0.15):
+        """水平展开排列"""
+        fn = get_font(size, "bold")
+        total_w = 0
+        widths = []
+        for ch in name:
+            tw, _ = text_bbox(draw, ch, fn)
+            widths.append(tw)
+            total_w += tw
+        gap = int(size * gap_ratio)
+        total_w += gap * (len(name) - 1)
+        x = cx - total_w / 2
+        for i, ch in enumerate(name):
+            draw.text((x, cy - widths[i]//2), ch, fill=color, font=fn)
+            x += widths[i] + gap
+
+    @staticmethod
+    def vertical_stack(draw, name, cx, cy, size, color, gap_ratio=0.3):
+        """竖排"""
+        fn = get_font(size, "bold")
+        gap = int(size * gap_ratio)
+        total_h = 0
+        heights = []
+        for ch in name:
+            _, th = text_bbox(draw, ch, fn)
+            heights.append(th)
+            total_h += th
+        total_h += gap * (len(name) - 1)
+        y = cy - total_h / 2
+        for i, ch in enumerate(name):
+            tw = text_bbox(draw, ch, fn)[0]
+            th = heights[i]
+            draw.text((cx-tw//2, y), ch, fill=color, font=fn)
+            y += th + gap
+
+    @staticmethod
+    def staggered(draw, name, cx, cy, size, color):
+        """错位排列"""
+        fn = get_font(size, "bold")
+        widths = []
+        for ch in name:
+            tw, th = text_bbox(draw, ch, fn)
+            widths.append((tw, th))
+        gap = size // 4
+        total_w = sum(w for w,_ in widths) + gap * (len(name)-1)
+        x = cx - total_w / 2
+        for i, (tw, th) in enumerate(widths):
+            y_off = -size//3 if i%2==0 else size//3
+            draw.text((x, cy-th//2+y_off), name[i], fill=color, font=fn)
+            x += tw + gap
+
+    @staticmethod
+    def outlined(draw, name, cx, cy, size, fill_color, outline_color, ol_width=2):
+        """描边文字"""
+        fn = get_font(size, "bold")
+        tw, th = text_bbox(draw, name, fn)
+        x, y = cx-tw//2, cy-th//2
+        for dx in [-ol_width, 0, ol_width]:
+            for dy in [-ol_width, 0, ol_width]:
+                if dx==0 and dy==0: continue
+                draw.text((x+dx, y+dy), name, fill=outline_color, font=fn)
+        draw.text((x, y), name, fill=fill_color, font=fn)
+
+    @staticmethod
+    def first_large(draw, name, cx, cy, sizes, color):
+        """首字放大"""
+        if len(name) < 2:
+            fn = get_font(sizes[0], "bold")
+            draw_ctext(draw, name, cy, fn, color)
+            return
+        fn_big = get_font(sizes[0], "bold")
+        fn_small = get_font(sizes[1], "bold")
+        tw_big, th_big = text_bbox(draw, name[0], fn_big)
+        rest_tw = 0
+        for ch in name[1:]:
+            rtw, _ = text_bbox(draw, ch, fn_small)
+            rest_tw += rtw
+        gap = 10
+        total_w = tw_big + rest_tw + gap * (len(name)-1)
+        x = cx - total_w / 2
+        # 首字
+        draw.text((x, cy-th_big//2), name[0], fill=color, font=fn_big)
+        x += tw_big + gap
+        # 其余
+        base_y = cy + th_big//2 - 5
+        for ch in name[1:]:
+            _, th_s = text_bbox(draw, ch, fn_small)
+            draw.text((x, base_y-th_s), ch, fill=color, font=fn_small)
+            rtw, _ = text_bbox(draw, ch, fn_small)
+            x += rtw + gap
+
+
+# ═══════════════ 色彩和谐引擎 ═══════════════
+
+class ColorHarmony:
+    """自动生成色彩和谐组合"""
+
+    @staticmethod
+    def complementary(hex_color):
+        """互补色"""
+        r, g, b = hex_to_rgb(hex_color)
+        return rgb_to_hex(255-r, 255-g, 255-b)
+
+    @staticmethod
+    def analogous(hex_color):
+        """近似色（±30°）"""
+        r, g, b = [x/255 for x in hex_to_rgb(hex_color)]
+        h, s, v = colorsys.rgb_to_hsv(r, g, b)
+        h1 = (h + 30/360) % 1.0
+        h2 = (h - 30/360) % 1.0
+        c1 = colorsys.hsv_to_rgb(h1, s, v)
+        c2 = colorsys.hsv_to_rgb(h2, s, v)
+        return (rgb_to_hex(int(c1[0]*255), int(c1[1]*255), int(c1[2]*255)),
+                rgb_to_hex(int(c2[0]*255), int(c2[1]*255), int(c2[2]*255)))
+
+    @staticmethod
+    def triadic(hex_color):
+        """三角色（±120°）"""
+        r, g, b = [x/255 for x in hex_to_rgb(hex_color)]
+        h, s, v = colorsys.rgb_to_hsv(r, g, b)
+        c1 = colorsys.hsv_to_rgb((h+120/360)%1.0, s, v)
+        c2 = colorsys.hsv_to_rgb((h+240/360)%1.0, s, v)
+        return (rgb_to_hex(int(c1[0]*255), int(c1[1]*255), int(c1[2]*255)),
+                rgb_to_hex(int(c2[0]*255), int(c2[1]*255), int(c2[2]*255)))
+
+    @staticmethod
+    def monochrome(hex_color, steps=3):
+        """单色系渐变"""
+        r, g, b = [x/255 for x in hex_to_rgb(hex_color)]
+        h, s, v = colorsys.rgb_to_hsv(r, g, b)
+        result = []
+        for i in range(steps):
+            v2 = v * (0.4 + 0.6 * i/(steps-1)) if steps>1 else v
+            s2 = s * (0.5 + 0.5 * i/(steps-1)) if steps>1 else s
+            nc = colorsys.hsv_to_rgb(h, s2, v2)
+            result.append(rgb_to_hex(int(nc[0]*255), int(nc[1]*255), int(nc[2]*255)))
+        return tuple(result)
+
+    @staticmethod
+    def derive_from_base(base_color, harmony_type, count=3):
+        """从基色派生一组和谐色"""
+        if harmony_type == "complementary":
+            return [base_color, ColorHarmony.complementary(base_color)]
+        elif harmony_type == "analogous":
+            a1, a2 = ColorHarmony.analogous(base_color)
+            return [base_color, a1, a2]
+        elif harmony_type == "triadic":
+            t1, t2 = ColorHarmony.triadic(base_color)
+            return [base_color, t1, t2]
+        else:  # monochrome
+            return list(ColorHarmony.monochrome(base_color, count))
+
 
 # ═══════════════ 行业视觉语义 ═══════════════
 
@@ -736,56 +974,55 @@ def typo_focus(draw, name, industry, mood, pal, nh, salt, tagline, eng):
     accent = hex_to_rgb(pal["accent"])
 
     n = len(name)
+
     # 自适应字号
-    if n <= 2: fs, gap = 200, 30
-    elif n <= 3: fs, gap = 140, 20
-    elif n <= 4: fs, gap = 100, 15
-    elif n <= 6: fs, gap = 72, 12
-    else: fs, gap = 52, 10
+    if n <= 2: size, gap = 180, 20
+    elif n <= 3: size, gap = 130, 15
+    elif n <= 4: size, gap = 96, 12
+    elif n <= 6: size, gap = 68, 10
+    else: size, gap = 48, 8
 
-    fn = get_font(fs, "bold")
+    # 文字表现方式 — 名称哈希决定
+    typo_mode = (nh // 5) % 5
 
-    # 水平排列 + 第一字特殊处理
-    # 测量
-    char_data = []
-    total_w = 0
-    for ch in name:
-        tw, th = text_bbox(draw, ch, fn)
-        char_data.append((tw, th))
-        total_w += tw
-    total_w += gap * (n-1)
+    if typo_mode == 0:
+        # 水平展开
+        Typography.horizontal_spread(draw, name, cx, cy, size, primary, 0.12)
+    elif typo_mode == 1:
+        # 描边效果
+        Typography.outlined(draw, name, cx, cy, size, primary, secondary, 2)
+    elif typo_mode == 2:
+        # 首字放大
+        Typography.first_large(draw, name, cx, cy, [int(size*1.4), size], primary)
+    elif typo_mode == 3:
+        # 错位
+        Typography.staggered(draw, name, cx, cy, size, primary)
+    else:
+        # 竖排
+        Typography.vertical_stack(draw, name, cx, cy, size, primary, 0.25)
 
-    start_x = (SIZE - total_w) / 2
-    x = start_x
-
-    for i, (ch_w, ch_h) in enumerate(char_data):
-        ch = name[i]
-        y = cy - ch_h//2
-
-        # 根据名称哈希决定文字处理方式
-        text_mode = (nh // (i+3)) % 3
-        if text_mode == 0:
-            draw.text((x, y), ch, fill=primary, font=fn)
-        elif text_mode == 1:
-            # 轮廓+填充
-            draw.text((x+1, y+1), ch, fill=secondary, font=fn)
-            draw.text((x, y), ch, fill=primary, font=fn)
-        else:
-            # 只有轮廓
-            draw.text((x+1, y+1), ch, fill=accent, font=fn)
-            draw.text((x-1, y-1), ch, fill=primary, font=fn)
-            draw.text((x, y), ch, fill=hex_to_rgb(pal["bg"]), font=fn)
-
-        x += ch_w + gap
-
-    # 底部装饰线 + 符号
-    line_y = SIZE * 0.72
-    draw.line([(SIZE*0.25, line_y), (SIZE*0.75, line_y)], fill=primary, width=2)
-    Shapes.diamond(draw, cx, int(line_y), 5, fill=accent)
+    # 装饰元素根据模式变化
+    line_y = SIZE * 0.70
+    if typo_mode in (0, 3):
+        # 双线
+        Patterns.layered_lines(draw, int(SIZE*0.25), int(line_y), int(SIZE*0.75), int(line_y),
+                              3, 6, primary, 2)
+    elif typo_mode == 1:
+        # 几何装饰
+        for dx in [-40, 0, 40]:
+            Shapes.diamond(draw, cx+dx, int(line_y), 6, fill=accent)
+    elif typo_mode == 2:
+        # 下划线 + 小图案
+        draw.line([(int(SIZE*0.28), int(line_y)), (int(SIZE*0.72), int(line_y))], fill=accent, width=2)
+        draw_industry_mini(draw, cx, int(SIZE*0.82), 25, accent, industry)
+    else:
+        # 竖排配竖线
+        line_x = SIZE * 0.28 if typo_mode == 4 else SIZE * 0.72
+        draw.line([(line_x, int(SIZE*0.18)), (line_x, int(SIZE*0.82))], fill=accent, width=1)
 
     if tagline or eng:
-        fn_sub = get_font(20, "light")
-        draw_ctext(draw, tagline or eng.upper(), line_y+20, fn_sub, accent)
+        fn_sub = get_font(18, "light")
+        draw_ctext(draw, tagline or eng.upper(), SIZE*0.84, fn_sub, secondary)
 
     return img
 
@@ -1000,49 +1237,357 @@ def modular_grid(draw, name, industry, mood, pal, nh, salt, tagline, eng):
 # ═══════════════ 行业迷你图标 ═══════════════
 
 def draw_industry_mini(draw, cx, cy, r, color, industry):
-    """在指定位置绘制小型行业符号"""
+    """行业专属图案库 — 14个行业各3种以上变体"""
     c = hex_to_rgb(color) if isinstance(color, str) else color
-    lw = max(1, r//12)
+    lw = max(1, r//10)
 
-    if industry == "tech":
-        Shapes.rect(draw, cx-r, cy-r, cx+r, cy+r, outline=c, width=lw, radius=4)
-        for dx in [-r//2, 0, r//2]:
-            for dy in [-r//2, 0, r//2]:
-                if dx==0 and dy==0: continue
-                Shapes.dot(draw, cx+dx, cy+dy, r//8, c)
-    elif industry == "finance":
-        for i, (dx, offset_y) in enumerate([(0, -r//2), (-r//3, r//2), (r//3, r//2)]):
-            pw = r//6
-            draw.rectangle([cx+dx-pw, cy+offset_y, cx+dx+pw, cy+r//2], outline=c, width=lw)
-    elif industry == "food":
-        Shapes.circle(draw, cx, cy, r, outline=c, width=lw)
-        Shapes.dot(draw, cx, cy-r//3, r//4, c)
-    elif industry == "trade":
-        Shapes.circle(draw, cx, cy, r, outline=c, width=lw)
-        draw.line([(cx-r, cy), (cx+r, cy)], fill=c, width=1)
-        draw.ellipse([cx-r//2, cy-r, cx+r//2, cy+r], outline=c, width=1)
-    elif industry == "culture":
-        Shapes.rect(draw, cx-r, cy-r, cx+r, cy+r, outline=c, width=lw)
-        Shapes.rect(draw, cx-r//2, cy-r//2, cx+r//2, cy+r//2, outline=c, width=1)
-    elif industry in ("health", "medical"):
-        w = r//4
-        draw.rectangle([cx-w, cy-r, cx+w, cy+r], fill=c)
-        draw.rectangle([cx-r, cy-w, cx+r, cy+w], fill=c)
-    elif industry == "sports":
-        pts = [
-            (cx, cy-r), (cx+r//2, cy-r//3), (cx+r//2, cy),
-            (cx, cy+r//2), (cx-r//2, cy), (cx-r//2, cy-r//3)
-        ]
+    motifs = {
+        "tech": [
+            # 电路节点
+            lambda: (_tech_nodes(draw, cx, cy, r, c, lw)),
+            # 芯片/CPU
+            lambda: (_tech_chip(draw, cx, cy, r, c, lw)),
+            # 数据网络
+            lambda: (_tech_network(draw, cx, cy, r, c, lw)),
+        ],
+        "finance": [
+            lambda: (_fin_bars(draw, cx, cy, r, c, lw)),
+            lambda: (_fin_arrow_up(draw, cx, cy, r, c, lw)),
+            lambda: (_fin_pie(draw, cx, cy, r, c, lw)),
+        ],
+        "food": [
+            lambda: (_food_leaf(draw, cx, cy, r, c, lw)),
+            lambda: (_food_bowl(draw, cx, cy, r, c, lw)),
+            lambda: (_food_wheat(draw, cx, cy, r, c, lw)),
+        ],
+        "trade": [
+            lambda: (_trade_globe(draw, cx, cy, r, c, lw)),
+            lambda: (_trade_arrows(draw, cx, cy, r, c, lw)),
+            lambda: (_trade_compass(draw, cx, cy, r, c, lw)),
+        ],
+        "construction": [
+            lambda: (_con_building(draw, cx, cy, r, c, lw)),
+            lambda: (_con_blueprint(draw, cx, cy, r, c, lw)),
+            lambda: (_con_beam(draw, cx, cy, r, c, lw)),
+        ],
+        "health": [
+            lambda: (_health_cross(draw, cx, cy, r, c, lw)),
+            lambda: (_health_heart(draw, cx, cy, r, c, lw)),
+            lambda: (_health_pulse(draw, cx, cy, r, c, lw)),
+        ],
+        "education": [
+            lambda: (_edu_book(draw, cx, cy, r, c, lw)),
+            lambda: (_edu_lamp(draw, cx, cy, r, c, lw)),
+            lambda: (_edu_compass(draw, cx, cy, r, c, lw)),
+        ],
+        "design": [
+            lambda: (_des_pen(draw, cx, cy, r, c, lw)),
+            lambda: (_des_grid(draw, cx, cy, r, c, lw)),
+            lambda: (_des_eye(draw, cx, cy, r, c, lw)),
+        ],
+        "realestate": [
+            lambda: (_re_home(draw, cx, cy, r, c, lw)),
+            lambda: (_re_key(draw, cx, cy, r, c, lw)),
+            lambda: (_re_tower(draw, cx, cy, r, c, lw)),
+        ],
+        "culture": [
+            lambda: (_cul_seal(draw, cx, cy, r, c, lw)),
+            lambda: (_cul_window(draw, cx, cy, r, c, lw)),
+            lambda: (_cul_cloud(draw, cx, cy, r, c, lw)),
+        ],
+        "sports": [
+            lambda: (_sp_flame(draw, cx, cy, r, c, lw)),
+            lambda: (_sp_chevron(draw, cx, cy, r, c, lw)),
+            lambda: (_sp_star_burst(draw, cx, cy, r, c, lw)),
+        ],
+        "manufacturing": [
+            lambda: (_mfg_gear(draw, cx, cy, r, c, lw)),
+            lambda: (_mfg_bolt(draw, cx, cy, r, c, lw)),
+            lambda: (_mfg_wrench(draw, cx, cy, r, c, lw)),
+        ],
+        "beauty": [
+            lambda: (_beauty_flower(draw, cx, cy, r, c, lw)),
+            lambda: (_beauty_drop(draw, cx, cy, r, c, lw)),
+            lambda: (_beauty_crown(draw, cx, cy, r, c, lw)),
+        ],
+        "law": [
+            lambda: (_law_scales(draw, cx, cy, r, c, lw)),
+            lambda: (_law_pillar(draw, cx, cy, r, c, lw)),
+            lambda: (_law_shield(draw, cx, cy, r, c, lw)),
+        ],
+    }
+
+    defaults = [
+        lambda: Shapes.circle(draw, cx, cy, r, fill=c),
+        lambda: Shapes.diamond(draw, cx, cy, r, fill=c),
+        lambda: Shapes.hexagon(draw, cx, cy, r, fill=c, outline=(255,255,255), width=lw),
+    ]
+
+    choices = motifs.get(industry, defaults)
+    import random as _random_module
+    # 用名称哈希的第一个字节决定变体
+    idx = abs(hash(industry + str(cx) + str(cy))) % len(choices)
+    choices[idx]()
+
+
+# ── 行业图案实现 ──
+def _tech_nodes(draw, cx, cy, r, c, lw):
+    Shapes.rect(draw, cx-r, cy-r, cx+r, cy+r, outline=c, width=lw, radius=3)
+    for dx in [-r//2, 0, r//2]:
+        for dy in [-r//2, 0, r//2]:
+            if dx==0 and dy==0: Shapes.dot(draw, cx, cy, r//3, c)
+            else: Shapes.dot(draw, cx+dx, cy+dy, r//6, c)
+    for (x1,y1,x2,y2) in [(-r,0, -r//2,0), (r//2,0, r,0), (0,-r, 0,-r//2), (0,r//2, 0,r)]:
+        draw.line([(cx+x1,cy+y1),(cx+x2,cy+y2)], fill=c, width=1)
+
+def _tech_chip(draw, cx, cy, r, c, lw):
+    s = r
+    Shapes.rect(draw, cx-s, cy-s, cx+s, cy+s, outline=c, width=lw, radius=5)
+    Shapes.rect(draw, cx-s//2, cy-s//2, cx+s//2, cy+s//2, fill=c)
+    for x in [cx-s//3, cx+s//3]:
+        for y in [cy-s//3, cy+s//3]:
+            draw.line([(x-s//6,y),(x+s//6,y)], fill=(255,255,255), width=1)
+
+def _tech_network(draw, cx, cy, r, c, lw):
+    n = 5
+    pts = [(cx+r*math.cos(2*math.pi*i/n), cy+r*math.sin(2*math.pi*i/n)) for i in range(n)]
+    for x,y in pts: Shapes.dot(draw, int(x), int(y), r//4, c)
+    for i in range(n):
+        for j in range(i+1,n):
+            draw.line([pts[i], pts[j]], fill=c, width=1)
+    Shapes.circle(draw, cx, cy, r//3, fill=c)
+
+def _fin_bars(draw, cx, cy, r, c, lw):
+    bar_w = r//5
+    for i, h in enumerate([0.4, 0.75, 1.0, 0.55, 0.85]):
+        x = cx + (i-2)*r//2
+        bh = r * h
+        draw.rectangle([x-bar_w, cy, x+bar_w, cy-bh], fill=c)
+    draw.line([(cx-r, cy), (cx+r, cy)], fill=c, width=lw)
+
+def _fin_arrow_up(draw, cx, cy, r, c, lw):
+    pts = [(cx, cy-r), (cx+r//2, cy-r//4), (cx+r//3, cy+r//2),
+           (cx-r//3, cy+r//2), (cx-r//2, cy-r//4)]
+    draw.polygon(pts, fill=c)
+    draw.rectangle([cx-r//5, cy+r//2, cx+r//5, cy+r], fill=c)
+
+def _fin_pie(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx, cy, r, outline=c, width=lw)
+    for i, (start, end) in enumerate([(0, 50), (50, 140), (140, 260), (260, 360)]):
+        if i%2==0:
+            s, e = start*math.pi/180, end*math.pi/180
+            pts = [(cx, cy)]
+            for a in range(int(s*180/math.pi), int(e*180/math.pi)+1):
+                pts.append((cx+r*math.cos(a*math.pi/180), cy+r*math.sin(a*math.pi/180)))
+            draw.polygon(pts, fill=c)
+
+def _food_leaf(draw, cx, cy, r, c, lw):
+    pts = [(cx, cy-r), (cx+r*0.6, cy-r*0.3), (cx+r*0.4, cy+r*0.4),
+           (cx, cy+r*0.6), (cx-r*0.4, cy+r*0.4), (cx-r*0.6, cy-r*0.3)]
+    draw.polygon(pts, fill=c)
+    draw.line([(cx, cy+r*0.6), (cx, cy+r)], fill=c, width=lw*2)
+
+def _food_bowl(draw, cx, cy, r, c, lw):
+    draw.arc([cx-r, cy-r//2, cx+r, cy+r], 0, 180, fill=c, width=lw*20 if lw>5 else 10)
+    for i in range(3):
+        x = cx - r//2 + i*r//2
+        Shapes.dot(draw, int(x), cy-r//4, r//5, (255,255,255))
+
+def _food_wheat(draw, cx, cy, r, c, lw):
+    draw.line([(cx, cy-r), (cx, cy+r)], fill=c, width=lw)
+    for side in [-1, 1]:
+        for i in range(4):
+            y = cy - r + i * r*0.5
+            x1, y1 = cx, y
+            x2, y2 = cx+side*r*0.4, y-r*0.25 if i%2==0 else y+r*0.25
+            draw.line([(x1, y1), (x2, y2)], fill=c, width=lw//2+1)
+
+def _trade_globe(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx, cy, r, outline=c, width=lw)
+    draw.ellipse([cx-r//2, cy-r, cx+r//2, cy+r], outline=c, width=1)
+    draw.line([(cx-r, cy), (cx+r, cy)], fill=c, width=1)
+
+def _trade_arrows(draw, cx, cy, r, c, lw):
+    # 循环箭头
+    for a in range(0, 270, 90):
+        ar = a * math.pi/180
+        x = cx + r*0.6*math.cos(ar)
+        y = cy + r*0.6*math.sin(ar)
+        Shapes.triangle(draw, int(x), int(y), r//3, fill=c, angle=ar+math.pi/2)
+    Shapes.circle(draw, cx, cy, r//3, outline=c, width=lw)
+
+def _trade_compass(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx, cy, r, outline=c, width=lw)
+    for a in [0, math.pi/2, math.pi, 3*math.pi/2]:
+        draw.line([(cx, cy), (cx+r*0.7*math.cos(a), cy+r*0.7*math.sin(a))], fill=c, width=lw//2)
+    Shapes.triangle(draw, cx, int(cy-r*0.35), r//3, fill=c, angle=0)
+    Shapes.triangle(draw, cx, int(cy+r*0.35), r//3, fill=(255,255,255), angle=math.pi)
+
+def _con_building(draw, cx, cy, r, c, lw):
+    w, h = r, int(r*1.3)
+    draw.rectangle([cx-w//2, cy-h//2, cx+w//2, cy+h//2], outline=c, width=lw)
+    draw.line([(cx-w//2,cy-h//2+10),(cx+w//2,cy-h//2+10)], fill=c, width=lw//2)
+
+def _con_blueprint(draw, cx, cy, r, c, lw):
+    for dx in [-1,1]:
+        for dy in [-1,1]:
+            s = r*0.6
+            draw.rectangle([cx+dx*s-5, cy+dy*s-5, cx+dx*s+5, cy+dy*s+5], fill=c)
+    draw.rectangle([cx-r//2, cy-r//2, cx+r//2, cy+r//2], fill=c, outline=(255,255,255), width=1)
+
+def _con_beam(draw, cx, cy, r, c, lw):
+    draw.line([(cx-r, cy-r//2), (cx+r, cy+r//2)], fill=c, width=lw*3)
+    draw.line([(cx-r, cy+r//2), (cx+r, cy-r//2)], fill=c, width=lw*3)
+    Shapes.circle(draw, cx, cy, r//3, fill=(255,255,255), outline=c, width=lw)
+
+def _health_cross(draw, cx, cy, r, c, lw):
+    w = r//3
+    draw.rectangle([cx-w, cy-r, cx+w, cy+r], fill=c)
+    draw.rectangle([cx-r, cy-w, cx+r, cy+w], fill=c)
+
+def _health_heart(draw, cx, cy, r, c, lw):
+    # 简化心形
+    pts = [(cx,cy+r*0.8), (cx-r*0.9,cy), (cx-r*0.6,cy-r*0.6),
+           (cx,cy-r*0.2), (cx+r*0.6,cy-r*0.6), (cx+r*0.9,cy)]
+    draw.polygon(pts, fill=c)
+
+def _health_pulse(draw, cx, cy, r, c, lw):
+    draw.line([(cx-r,cy),(cx-r//3,cy),(cx,cy-r//2),(cx+r//3,cy),(cx+r,cy)], fill=c, width=lw*2)
+    Shapes.dot(draw, cx, cy-r//2, r//5, c)
+
+def _edu_book(draw, cx, cy, r, c, lw):
+    w, h = int(r*0.7), int(r*0.9)
+    draw.rectangle([cx-w//2, cy-h//2, cx+w//2, cy+h//2], outline=c, width=lw)
+    draw.line([(cx, cy-h//2), (cx, cy+h//2)], fill=c, width=1)
+
+def _edu_lamp(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx, cy-r//3, r//3, fill=c)
+    draw.polygon([(cx-r//2,cy-r//3),(cx+r//2,cy-r//3),(cx,cy+r//2)], fill=c)
+    Shapes.rect(draw, cx-r//4, int(cy+r*0.4), cx+r//4, int(cy+r*0.7), outline=c, width=lw)
+
+def _edu_compass(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx, cy, r, outline=c, width=lw)
+    for i in range(4):
+        a = i*math.pi/2
+        draw.line([(cx,cy),(cx+r*0.7*math.cos(a),cy+r*0.7*math.sin(a))], fill=c, width=1)
+
+def _des_pen(draw, cx, cy, r, c, lw):
+    pts = [(cx-r//3,cy+r//2),(cx+r//3,cy-r//2)]
+    draw.line(pts, fill=c, width=lw*3)
+    draw.polygon([(cx+r//3,cy-r//2),(cx+r//2,cy-r*0.8),(cx+r,cy-r*0.5),(cx+r//2,cy-r//3)], fill=c)
+
+def _des_grid(draw, cx, cy, r, c, lw):
+    for i in range(3):
+        for j in range(3):
+            s = r//5
+            x, y = cx+(i-1)*r//2, cy+(j-1)*r//2
+            Shapes.dot(draw, int(x), int(y), s, c)
+
+def _des_eye(draw, cx, cy, r, c, lw):
+    Shapes.ellipse_fit = lambda: draw.ellipse([cx-r, cy-r//2, cx+r, cy+r//2], outline=c, width=lw)
+    draw.ellipse([cx-r, cy-r//2, cx+r, cy+r//2], outline=c, width=lw)
+    Shapes.circle(draw, cx, cy, r//3, fill=c)
+
+def _re_home(draw, cx, cy, r, c, lw):
+    pts = [(cx,cy-r),(cx+r,cy-r//3),(cx+r,cy+r//2),(cx-r,cy+r//2),(cx-r,cy-r//3)]
+    draw.polygon(pts, outline=c, width=lw)
+    hw = r//3
+    draw.rectangle([cx-hw, cy, cx+hw, cy+r//2], outline=c, width=lw//2)
+
+def _re_key(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx-r//3, cy-r//3, r//3, outline=c, width=lw)
+    draw.line([(cx-r//3,cy),(cx+r,cy)], fill=c, width=lw*2)
+    draw.line([(cx+r//2,cy),(cx+r//2,cy+r//2)], fill=c, width=lw*2)
+
+def _re_tower(draw, cx, cy, r, c, lw):
+    w, h = r//2, r
+    draw.rectangle([cx-w, cy-h//2, cx+w, cy+h//2], outline=c, width=lw)
+    draw.line([(cx-w,cy-h//2),(cx,cy-h),(cx+w,cy-h//2)], fill=c, width=lw)
+
+def _cul_seal(draw, cx, cy, r, c, lw):
+    Shapes.rect(draw, cx-r, cy-r, cx+r, cy+r, outline=c, width=lw)
+    Shapes.rect(draw, cx-r//2, cy-r//2, cx+r//2, cy+r//2, outline=c, width=lw//2)
+    for dx,dy in [(-1,-1),(1,-1),(-1,1),(1,1)]:
+        cl = r//5
+        draw.line([(cx+dx*cl, cy+dy*r//2), (cx+dx*cl, cy+dy*r)], fill=c, width=1)
+
+def _cul_window(draw, cx, cy, r, c, lw):
+    Shapes.rect(draw, cx-r, cy-r, cx+r, cy+r, outline=c, width=lw, radius=r//4)
+    draw.line([(cx, cy-r), (cx, cy+r)], fill=c, width=1)
+    draw.line([(cx-r, cy), (cx+r, cy)], fill=c, width=1)
+
+def _cul_cloud(draw, cx, cy, r, c, lw):
+    for dx in [-r//2, 0, r//2]:
+        p = int(cx+dx)
+        Shapes.circle(draw, p, cy, r//2, fill=c)
+    Shapes.rect(draw, int(cx-r//2), cy, int(cx+r//2), cy+r//2, fill=c)
+
+def _sp_flame(draw, cx, cy, r, c, lw):
+    pts = [(cx,cy-r),(cx+r//2,cy-r//3),(cx+r//2,cy+r//3),
+           (cx,cy+r//2),(cx-r//2,cy+r//3),(cx-r//2,cy-r//3)]
+    draw.polygon(pts, fill=c)
+
+def _sp_chevron(draw, cx, cy, r, c, lw):
+    for y_off in [-r//2, 0, r//2]:
+        pts = [(cx-r//2,cy+y_off-r//4),(cx,cy+y_off),(cx-r//2,cy+y_off+r//4)]
         draw.polygon(pts, fill=c)
-    elif industry == "beauty":
-        for i in range(5):
-            a = i * 2*math.pi/5 - math.pi/2
-            px, py = cx + r//2*math.cos(a), cy + r//2*math.sin(a)
-            Shapes.dot(draw, int(px), int(py), r//4, c)
-        Shapes.dot(draw, cx, cy, r//5, c)
-    else:
-        Shapes.circle(draw, cx, cy, r//2, fill=c)
-        Shapes.ring(draw, cx, cy, r, c, lw)
+
+def _sp_star_burst(draw, cx, cy, r, c, lw):
+    Patterns.starburst(draw, cx, cy, 8, r//4, r, c, lw)
+    Shapes.circle(draw, cx, cy, r//4, fill=(255,255,255))
+
+def _mfg_gear(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx, cy, r, outline=c, width=lw)
+    Shapes.circle(draw, cx, cy, r//3, fill=c)
+    for i in range(8):
+        a = i*math.pi/4
+        sr = r//6
+        dx, dy = r*math.cos(a), r*math.sin(a)
+        Shapes.rect(draw, int(cx+dx-sr), int(cy+dy-sr), int(cx+dx+sr), int(cy+dy+sr), fill=c, radius=2)
+
+def _mfg_bolt(draw, cx, cy, r, c, lw):
+    pts = [(cx-r//3,cy-r),(cx+r//3,cy-r//4),(cx-r//3,cy),(cx+r//3,cy+r//4),(cx-r//3,cy+r)]
+    draw.polygon(pts, fill=c)
+
+def _mfg_wrench(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, int(cx-r//2), int(cy-r//2), r//3, outline=c, width=lw*2)
+    draw.rectangle([cx, cy-r//6, cx+r//2, cy+r//6], fill=c)
+
+def _beauty_flower(draw, cx, cy, r, c, lw):
+    for i in range(5):
+        a = i*2*math.pi/5 - math.pi/2
+        px, py = cx + r*0.45*math.cos(a), cy + r*0.45*math.sin(a)
+        Shapes.dot(draw, int(px), int(py), r//4, c)
+    Shapes.dot(draw, cx, cy, r//5, (255,255,255))
+
+def _beauty_drop(draw, cx, cy, r, c, lw):
+    Shapes.circle(draw, cx, int(cy-r//2), r//2, fill=c)
+    draw.polygon([(cx-r//2,cy-r//2),(cx+r//2,cy-r//2),(cx,cy+r//2)], fill=c)
+
+def _beauty_crown(draw, cx, cy, r, c, lw):
+    pts = [(cx-r,cy+r//3),(cx-r,cy-r//2),(cx-r//3,cy-r//3),
+           (cx,cy-r),(cx+r//3,cy-r//3),(cx+r,cy-r//2),(cx+r,cy+r//3)]
+    draw.polygon(pts, outline=c, width=lw)
+    for x in [cx-r, cx-r//3, cx+r//3, cx+r]:
+        Shapes.dot(draw, int(x), cy-r//3, r//8, c)
+
+def _law_scales(draw, cx, cy, r, c, lw):
+    draw.line([(cx, cy-r//2), (cx, cy+r//2)], fill=c, width=lw)
+    draw.line([(cx-r,cy-r//2),(cx+r,cy-r//2)], fill=c, width=lw)
+    for dx in [-1, 1]:
+        pts = [(cx+dx*r*0.6,cy-r//2-lw),(cx+dx*r*0.3,cy-r//4),(cx+dx*r*0.8,cy-r//4)]
+        draw.polygon(pts, fill=c)
+
+def _law_pillar(draw, cx, cy, r, c, lw):
+    for i, (dx, h) in enumerate([(0, r), (-r//3, int(r*0.7)), (r//3, int(r*0.7))]):
+        w = r//4
+        draw.rectangle([cx+dx-w, cy-h//2, cx+dx+w, cy+h//2], outline=c, width=lw)
+        draw.rectangle([cx+dx-w*2, cy-h//2-w//2, cx+dx+w*2, cy-h//2], fill=c)
+
+def _law_shield(draw, cx, cy, r, c, lw):
+    pts = [(cx,cy-r),(cx+r,cy-r//2),(cx+r,cy+r//3),(cx,cy+r),(cx-r,cy+r//3),(cx-r,cy-r//2)]
+    draw.polygon(pts, outline=c, width=lw)
+    Shapes.star(draw, cx, cy, r//3, points=5, fill=c)
 
 
 # ═══════════════ 主程序 ═══════════════
