@@ -1,35 +1,22 @@
 """
-FDE Logo Studio v3 — 设计组合引擎Web界面
-Streamlit前端 + generate.py v3核心引擎
+FDE Logo Studio v4 — 多品类设计引擎Web界面
+Streamlit前端 + generate.py v4核心
 """
 import streamlit as st
-import sys, os, subprocess, glob, base64, zipfile, io, time
+import sys, os, subprocess, glob, base64, zipfile, io
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from datetime import datetime
-from pathlib import Path
 
-st.set_page_config(
-    page_title="FDE Logo Studio v3",
-    page_icon="🎨",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="FDE Logo Studio v4", page_icon="🎨", layout="wide")
 
 st.markdown("""
 <style>
     .main-header { font-size: 2.2rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0; }
     .sub-header { font-size: 1rem; color: #666; margin-bottom: 1.5rem; }
-    .price-tag { 
-        display: inline-block; background: #1a1a2e; color: white; 
-        padding: 4px 12px; border-radius: 20px; font-size: 0.85rem;
-    }
-    .stButton > button {
-        width: 100%; border-radius: 8px; font-weight: 600;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white; border: none; padding: 12px;
-    }
+    .price-tag { display: inline-block; background: #1a1a2e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; }
+    .stButton > button { width: 100%; border-radius: 8px; font-weight: 600; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -38,100 +25,81 @@ OUTPUT_BASE = r"D:\Tools\logo-generator\output"
 
 col1, col2 = st.columns([3, 1])
 with col1:
-    st.markdown('<p class="main-header">🎨 FDE Logo Studio v3</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">设计组合引擎 · 12种构图 · 30+几何元素 · 15种图案 · 14行业适配</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">🎨 FDE Logo Studio v4</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">多品类设计引擎 · 7大品类 · 15行业 · 45种图标</p>', unsafe_allow_html=True)
 with col2:
-    st.markdown(f'<div style="text-align:right;padding-top:20px"><span class="price-tag">v3.0 组合引擎</span></div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align:right;padding-top:20px"><span class="price-tag">v4.0 多品类</span></div>', unsafe_allow_html=True)
 
 st.divider()
 
 with st.sidebar:
     st.markdown("### ⚙️ 品牌信息")
-    brand_name = st.text_input("品牌名称", placeholder="例：谊璜贸易", value="")
+    brand_name = st.text_input("品牌名称", placeholder="例：谊璜贸易")
 
     input_mode = st.radio("输入模式", ["🎯 快速配置", "📝 设计简报", "📦 按数量"], horizontal=False)
 
     if input_mode == "🎯 快速配置":
         industry = st.selectbox("行业", [
-            "trade(贸易)", "tech(科技)", "food(食品)", "finance(金融)",
-            "manufacturing(制造)", "healthcare(医疗)", "education(教育)",
-            "realestate(房地产)", "design(设计)", "sports(运动)",
-            "culture(文化)", "beauty(美妆)", "legal(法律)", "media(传媒)"
+            "trade(贸易)","tech(科技)","food(食品)","finance(金融)",
+            "manufacturing(制造)","health(医疗)","education(教育)",
+            "realestate(房地产)","design(设计)","sports(运动)",
+            "culture(文化)","beauty(美妆)","law(法律)","media(传媒)","construction(建筑)"
         ])
-        industry_code = industry.split("(")[1].replace(")", "") if "(" in industry else "tech"
-
+        industry_code = industry.split("(")[1].replace(")","") if "(" in industry else "tech"
         mood = st.selectbox("调性", [
-            "modern(现代简约)", "elegance(优雅高端)", "bold(大胆醒目)",
-            "playful(活泼有趣)", "tech(科技感)", "vintage(复古经典)",
-            "minimal(极致极简)", "nature(自然有机)"
+            "modern(现代简约)","elegance(优雅高端)","bold(大胆醒目)",
+            "playful(活泼有趣)","tech(科技感)","vintage(复古经典)",
+            "minimal(极致极简)","nature(自然有机)"
         ])
-        mood_code = mood.split("(")[1].replace(")", "") if "(" in mood else "modern"
-
-        count = st.slider("生成数量", 4, 16, 8, help="每个都是独立组合的设计")
-        tagline = st.text_input("口号/副标题（可选）", placeholder="例：品质至上 诚信为本")
+        mood_code = mood.split("(")[1].replace(")","") if "(" in mood else "modern"
+        count = st.slider("生成数量", 4, 14, 7)
+        tagline = st.text_input("口号/副标题（可选）")
         brief = ""
-
     elif input_mode == "📝 设计简报":
-        brief = st.text_area("描述你的品牌风格",
-            placeholder="例：高端土特产品牌，主打古朴雅致，不要太现代，偏中国传统风格。",
-            height=120)
-        industry_code = "trade"
-        mood_code = ""
-        count = 8
-        tagline = st.text_input("口号/副标题（可选）")
-
-    else:  # 按数量
+        brief = st.text_area("描述品牌风格", placeholder="例：高端土特产品牌，主打古朴雅致...", height=120)
+        industry_code = "trade"; mood_code = ""; count = 7; tagline = st.text_input("口号/副标题（可选）")
+    else:
         tier = st.radio("选择数量", [
-            "💰 体验版 ¥69 — 6个设计",
-            "💎 标准版 ¥129 — 9个设计",
-            "👑 进阶版 ¥299 — 12个全构图"
+            "💰 体验版 ¥69 — 4个品类", "💎 标准版 ¥129 — 7个全品类", "👑 进阶版 ¥299 — 14个深度"
         ])
-        if "6个" in tier: count = 6
-        elif "9个" in tier: count = 9
-        else: count = 12
-        industry_code = st.selectbox("行业", ["trade", "tech", "food", "finance", "manufacturing", "healthcare"],
-            format_func=lambda x: {"trade":"贸易","tech":"科技","food":"食品","finance":"金融","manufacturing":"制造","healthcare":"医疗"}.get(x,x))
-        mood_code = st.selectbox("调性", ["modern", "elegance", "bold", "tech", "minimal"])
-        brief = ""
-        tagline = st.text_input("口号/副标题（可选）")
+        if "4个" in tier: count = 4
+        elif "7个" in tier: count = 7
+        else: count = 14
+        industry_code = st.selectbox("行业", ["trade","tech","food","finance","manufacturing","health"],
+            format_func=lambda x: {"trade":"贸易","tech":"科技","food":"食品","finance":"金融","manufacturing":"制造","health":"医疗"}.get(x,x))
+        mood_code = st.selectbox("调性", ["modern","elegance","bold","tech","minimal"])
+        brief = ""; tagline = st.text_input("口号/副标题（可选）")
 
     st.divider()
-    generate_btn = st.button("🚀 开始生成", use_container_width=True, type="primary")
+    generate_btn = st.button("🚀 生成Logo", use_container_width=True, type="primary")
 
-tab1, tab2, tab3 = st.tabs(["🎨 生成结果", "📊 方案对比", "📖 使用指南"])
+tab1, tab2 = st.tabs(["🎨 生成结果", "📖 引擎说明"])
 
-with tab3:
+with tab2:
     st.markdown("""
-    ### 🎯 v3 设计组合引擎 vs 传统模板
+    ### 🎯 v4 多品类引擎
 
-    | | 传统模板工具 | FDE Logo Studio v3 |
+    | | v3 | v4 |
     |---|---|---|
-    | 设计方式 | 固定模板换色换字 | 12种构图 × 30+几何 × 15种图案 |
-    | 同行业不同名 | 一样的设计 | **完全不同** |
-    | 输出多样性 | 4-8种颜色变体 | **数千种组合可能性** |
-    | 行业感知 | 无 | 形状/图案/符号自动匹配 |
+    | 设计方式 | 1套模具×12排列 | **7个独立视觉引擎** |
+    | 异名同位置 | 可能类似 | **完全不同品类** |
+    | 品类终点 | 全走几何范 | 字标/字母/图形/抽象/徽章/组合/负空间 |
 
-    ### 🏗️ 12种构图框架
+    ### 🏗️ 7大品类
 
-    | # | 构图 | 特点 |
-    |---|------|------|
-    | 1 | 中心图形 | 几何标识+品牌名 |
-    | 2 | 左右分区 | 图形左·文字右 |
-    | 3 | 圆形徽章 | 多层环状徽记 |
-    | 4 | 对角分割 | 斜切分区·强对比 |
-    | 5 | 边框框架 | 四角L形框·高级感 |
-    | 6 | 几何图案 | 点阵/辐射/弧线背景 |
-    | 7 | 环状徽章 | 商标级徽章·多层认证风 |
-    | 8 | 文字焦点 | 文字本身就是Logo |
-    | 9 | 图层重叠 | 多色叠层·现代感 |
-    | 10 | 线艺抽象 | 波浪线·艺术感 |
-    | 11 | 负空间 | 色彩分区·镂空效果 |
-    | 12 | 模块网格 | n×n网格·极客感 |
+    | # | 品类 | 视觉 | 参考 |
+    |---|------|------|------|
+    | 1 | 纯文字标 | 字体即Logo | Google, Coca-Cola |
+    | 2 | 字母标 | 字母艺术化 | IBM, HBO |
+    | 3 | 图形标 | 具象图标为主 | Apple, Twitter |
+    | 4 | 抽象标 | 纯几何构成 | Nike, Pepsi |
+    | 5 | 徽章标 | 图文被包裹 | Starbucks |
+    | 6 | 组合标 | 图标+文字 | Adidas |
+    | 7 | 负空间标 | 镂空/分区 | FedEx |
 
-    ### 💡 核心原理
-
-    公司名→哈希值→决定：图形形状/颜色顺序/图案类型/布局参数。
-    **同一名称永远生成相同序列，不同名称完全不同。**
+    ### 💡 核心机制
+    名称→SHA256→决定主品类(7选1)→每个设计在所有品类间轮转。
+    **同一名称永远相同序列，不同名称完全不同起点。**
     """)
 
 if generate_btn:
@@ -140,114 +108,60 @@ if generate_btn:
     else:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = os.path.join(OUTPUT_BASE, f"{brand_name}_{timestamp}")
-
         cmd_list = [
-            sys.executable, ENGINE,
-            "--name", brand_name,
-            "--industry", industry_code,
-            "--count", str(count),
+            sys.executable, ENGINE, "--name", brand_name,
+            "--industry", industry_code, "--count", str(count),
             "--output", output_dir,
         ]
-        if mood_code:
-            cmd_list.extend(["--mood", mood_code])
-        if tagline:
-            cmd_list.extend(["--tagline", tagline])
-        if brief:
-            cmd_list.extend(["--brief", brief])
+        if mood_code: cmd_list.extend(["--mood", mood_code])
+        if tagline: cmd_list.extend(["--tagline", tagline])
+        if brief: cmd_list.extend(["--brief", brief])
 
-        progress_text = st.empty()
-        progress_bar = st.progress(0)
-        status = st.empty()
+        pb = st.progress(0)
+        st.text(f"⏳ 正在为 {brand_name} 生成 {count} 个品类设计...")
+        pb.progress(20)
 
         try:
-            progress_text.text(f"正在为 {brand_name} 组合设计...")
-            progress_bar.progress(20)
-            status.text("⏳ 引擎运行中...")
-
             result = subprocess.run(cmd_list, capture_output=True, text=True,
                                   encoding='utf-8', timeout=120)
-            progress_bar.progress(80)
-            status.text("✅ 生成完成！")
+            pb.progress(80)
 
             if result.returncode == 0:
-                progress_bar.progress(100)
-
-                compositions = ["中心图形","左右分区","圆形徽章","对角分割",
-                               "边框框架","几何图案","环状徽章","文字焦点",
-                               "图层重叠","线艺抽象","负空间","模块网格"]
-
-                progress_text.text(
-                    f"✅ {brand_name} · {count}个独立设计 · {count*2}张文件"
-                    f" · 覆盖 {min(count,12)} 种构图")
+                pb.progress(100)
+                type_names = ["纯文字标","字母标","图形标","抽象标","徽章标","组合标","负空间标"]
+                png_files = glob.glob(os.path.join(output_dir, "*.png"))
+                main_files = sorted([f for f in png_files if "-avatar" not in f])
 
                 with tab1:
-                    st.success(f"生成成功！输出目录：`{output_dir}`")
-
-                    png_files = glob.glob(os.path.join(output_dir, "*.png"))
-                    main_files = sorted([f for f in png_files if "-avatar" not in f])
-
+                    st.success(f"✅ {brand_name} · {len(main_files)}个品类设计 · {os.path.basename(output_dir)}")
                     if main_files:
-                        st.markdown(f"### 🖼️ {count}个独立设计")
+                        cols = st.columns(min(3, len(main_files)))
+                        for i, f in enumerate(main_files[:9]):
+                            fname = os.path.basename(f).replace(".png","")
+                            comp = type_names[i%7]
+                            cols[i%3].image(f, caption=f"{fname} · {comp}", use_container_width=True)
 
-                        cols_per_row = 3
-                        for i in range(0, len(main_files), cols_per_row):
-                            cols = st.columns(cols_per_row)
-                            for j in range(cols_per_row):
-                                idx = i + j
-                                if idx < len(main_files):
-                                    f = main_files[idx]
-                                    fname = os.path.basename(f).replace(".png", "")
-                                    comp = compositions[idx % 12] if idx < 12 else ""
-                                    caption = f"{fname} · {comp}"
-                                    try:
-                                        cols[j].image(f, caption=caption,
-                                                    use_container_width=True)
-                                    except:
-                                        cols[j].text(fname)
-
-                        st.divider()
-                        st.markdown("### 📦 一键下载")
-                        zip_buffer = io.BytesIO()
-                        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                            for f in main_files:
-                                zf.write(f, os.path.basename(f))
-                        zip_buffer.seek(0)
-
-                        st.download_button(
-                            label=f"⬇️ 下载全部 {len(main_files)} 张方案 (ZIP)",
-                            data=zip_buffer,
-                            file_name=f"{brand_name}_Logo方案_{timestamp}.zip",
-                            mime="application/zip",
-                            use_container_width=True
-                        )
-
-                    with tab2:
-                        if len(main_files) >= 2:
-                            st.markdown("### 并排对比")
-                            for i in range(0, len(main_files), 2):
-                                c1, c2 = st.columns(2)
-                                with c1:
-                                    if i < len(main_files):
-                                        comp1 = compositions[i%12] if i<12 else ""
-                                        st.image(main_files[i],
-                                               caption=f"设计{i+1} · {comp1}",
-                                               use_container_width=True)
-                                with c2:
-                                    if i+1 < len(main_files):
-                                        comp2 = compositions[(i+1)%12] if i+1<12 else ""
-                                        st.image(main_files[i+1],
-                                               caption=f"设计{i+2} · {comp2}",
-                                               use_container_width=True)
+                        if len(main_files) > 0:
+                            st.divider()
+                            zip_buffer = io.BytesIO()
+                            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+                                for f in main_files:
+                                    zf.write(f, os.path.basename(f))
+                            zip_buffer.seek(0)
+                            st.download_button(
+                                label=f"⬇️ 下载 {len(main_files)} 个方案 (ZIP)",
+                                data=zip_buffer,
+                                file_name=f"{brand_name}_Logo_{timestamp}.zip",
+                                mime="application/zip", use_container_width=True)
             else:
-                st.error(f"生成失败\n```\n{result.stderr}\n{result.stdout}\n```")
-
+                st.error(f"生成失败\n```\n{result.stderr}\n```")
         except subprocess.TimeoutExpired:
-            st.error("生成超时（120秒），请减少数量重试")
+            st.error("操作超时")
         except Exception as e:
             st.error(f"出错：{e}")
 
 st.divider()
 c1, c2, c3 = st.columns(3)
-with c1: st.metric("构图系统", "12", "种框架")
-with c2: st.metric("组合可能", "数千", "种/品牌")
-with c3: st.metric("适配行业", "14", "个行业")
+with c1: st.metric("视觉品类", "7", "独立引擎")
+with c2: st.metric("行业图标", "45", "种变体")
+with c3: st.metric("适配行业", "15", "个")
