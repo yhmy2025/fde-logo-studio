@@ -182,7 +182,7 @@ if generate_btn:
             progress_bar.progress(20)
             status.text("⏳ 引擎启动中...")
             
-            result = subprocess.run(cmd_list, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd_list, capture_output=True, text=True, encoding='utf-8', timeout=120)
             progress_bar.progress(80)
             status.text("✅ 生成完成！")
             
