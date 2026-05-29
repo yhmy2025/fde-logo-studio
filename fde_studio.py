@@ -4,6 +4,10 @@ Streamlit前端 + generate.py核心引擎
 """
 import streamlit as st
 import sys, os, subprocess, glob, base64, zipfile, io, time
+
+# 确保 stdout 支持 UTF-8（Windows 中文路径）
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 from datetime import datetime
 from pathlib import Path
 
@@ -153,23 +157,21 @@ if generate_btn:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = os.path.join(OUTPUT_BASE, f"{brand_name}_{timestamp}")
         
-        # 构建命令
-        cmd_parts = [
-            "python", ENGINE,
-            "--name", f'"{brand_name}"',
+        # 构建命令（列表形式，避免Windows引号问题）
+        cmd_list = [
+            sys.executable, ENGINE,
+            "--name", brand_name,
             "--industry", industry_code,
             "--styles", styles_code,
             "--directions", str(num_directions),
             "--output", output_dir,
         ]
         if mood_code:
-            cmd_parts.extend(["--mood", mood_code])
+            cmd_list.extend(["--mood", mood_code])
         if tagline:
-            cmd_parts.extend(["--tagline", f'"{tagline}"'])
+            cmd_list.extend(["--tagline", tagline])
         if input_mode == "📝 设计简报" and brief:
-            cmd_parts.extend(["--brief", f'"{brief}"'])
-        
-        cmd = " ".join(cmd_parts)
+            cmd_list.extend(["--brief", brief])
         
         progress_text = st.empty()
         progress_bar = st.progress(0)
@@ -180,7 +182,7 @@ if generate_btn:
             progress_bar.progress(20)
             status.text("⏳ 引擎启动中...")
             
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(cmd_list, capture_output=True, text=True, timeout=120)
             progress_bar.progress(80)
             status.text("✅ 生成完成！")
             
