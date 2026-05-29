@@ -1,0 +1,7 @@
+# Logo Generator dependencies
+Pillow>=10.0.0
+streamlit>=1.50.0
+
+# Optional: for future API server
+# fastapi>=0.100.0
+# uvicorn>=0.30.0

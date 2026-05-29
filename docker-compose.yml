@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  fde-studio:
+    build: .
+    container_name: fde-logo-studio
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./output:/app/output
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
