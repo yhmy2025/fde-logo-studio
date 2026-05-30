@@ -38,26 +38,30 @@ with st.sidebar:
 
     input_mode = st.radio("输入模式", ["🎯 快速配置", "📝 设计简报", "📦 按数量"], horizontal=False)
 
+    INDUSTRIES = { "trade":"贸易", "tech":"科技", "food":"食品", "finance":"金融",
+        "manufacturing":"制造", "health":"医疗", "education":"教育",
+        "realestate":"房地产", "design":"设计", "sports":"运动",
+        "culture":"文化", "beauty":"美妆", "law":"法律", "media":"传媒", "construction":"建筑" }
+    MOODS = { "modern":"现代简约", "elegance":"优雅高端", "bold":"大胆醒目",
+        "playful":"活泼有趣", "tech":"科技感", "vintage":"复古经典",
+        "minimal":"极致极简", "nature":"自然有机" }
+
     if input_mode == "🎯 快速配置":
-        industry = st.selectbox("行业", [
-            "trade(贸易)","tech(科技)","food(食品)","finance(金融)",
-            "manufacturing(制造)","health(医疗)","education(教育)",
-            "realestate(房地产)","design(设计)","sports(运动)",
-            "culture(文化)","beauty(美妆)","law(法律)","media(传媒)","construction(建筑)"
-        ])
-        industry_code = industry.split("(")[1].replace(")","") if "(" in industry else "tech"
-        mood = st.selectbox("调性", [
-            "modern(现代简约)","elegance(优雅高端)","bold(大胆醒目)",
-            "playful(活泼有趣)","tech(科技感)","vintage(复古经典)",
-            "minimal(极致极简)","nature(自然有机)"
-        ])
-        mood_code = mood.split("(")[1].replace(")","") if "(" in mood else "modern"
+        industry_code = st.selectbox("行业", list(INDUSTRIES.keys()),
+            format_func=lambda x: f"{x}({INDUSTRIES[x]})")
+        mood_code = st.selectbox("调性", list(MOODS.keys()),
+            format_func=lambda x: f"{x}({MOODS[x]})")
         count = st.slider("生成数量", 4, 14, 7)
         tagline = st.text_input("口号/副标题（可选）")
         brief = ""
     elif input_mode == "📝 设计简报":
         brief = st.text_area("描述品牌风格", placeholder="例：高端土特产品牌，主打古朴雅致...", height=120)
-        industry_code = "trade"; mood_code = ""; count = 7; tagline = st.text_input("口号/副标题（可选）")
+        industry_code = st.selectbox("行业", list(INDUSTRIES.keys()),
+            format_func=lambda x: INDUSTRIES[x])
+        mood_code = st.selectbox("调性", list(MOODS.keys()),
+            format_func=lambda x: MOODS[x])
+        count = st.slider("生成数量", 4, 14, 7)
+        tagline = st.text_input("口号/副标题（可选）")
     else:
         tier = st.radio("选择数量", [
             "💰 体验版 ¥69 — 4个品类", "💎 标准版 ¥129 — 7个全品类", "👑 进阶版 ¥299 — 14个深度"
@@ -65,9 +69,10 @@ with st.sidebar:
         if "4个" in tier: count = 4
         elif "7个" in tier: count = 7
         else: count = 14
-        industry_code = st.selectbox("行业", ["trade","tech","food","finance","manufacturing","health"],
-            format_func=lambda x: {"trade":"贸易","tech":"科技","food":"食品","finance":"金融","manufacturing":"制造","health":"医疗"}.get(x,x))
-        mood_code = st.selectbox("调性", ["modern","elegance","bold","tech","minimal"])
+        industry_code = st.selectbox("行业", list(INDUSTRIES.keys()),
+            format_func=lambda x: INDUSTRIES[x])
+        mood_code = st.selectbox("调性", list(MOODS.keys()),
+            format_func=lambda x: MOODS[x])
         brief = ""; tagline = st.text_input("口号/副标题（可选）")
 
     st.divider()
